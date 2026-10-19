@@ -1,0 +1,317 @@
+<title>Trip Expense Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column, balances first, then quick-add form, heads breakdown, history. */
+:root {
+  --bg: #f2f4f1;
+  --surface: #ffffff;
+  --fg: #19231f;
+  --muted: #5d6b65;
+  --line: #dde3df;
+  --accent: #0f6b5c;
+  --accent-fg: #ffffff;
+  --cash: #a85a00;
+  --online: #1f58c4;
+  --bad: #b3261e;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101714; --surface: #18221e; --fg: #e6ede9; --muted: #9aaba3; --line: #2a3832;
+    --accent: #3fc2a8; --accent-fg: #07211b; --cash: #f0a24a; --online: #7aa5ff; --bad: #ff8a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101714; --surface: #18221e; --fg: #e6ede9; --muted: #9aaba3; --line: #2a3832;
+  --accent: #3fc2a8; --accent-fg: #07211b; --cash: #f0a24a; --online: #7aa5ff; --bad: #ff8a80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.05rem; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row > * { min-width: 0; }
+.between { justify-content: space-between; }
+label { font-size: 0.8rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; flex: 1 1 140px; }
+input, select, button { font: inherit; color: inherit; }
+input, select {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; color: var(--fg);
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 10px 14px; font-weight: 500; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+button.link { border: 0; background: none; color: var(--accent); padding: 4px 6px; }
+button.danger { color: var(--bad); }
+.trip-name { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; background: transparent; border: 0; border-bottom: 1px dashed var(--line); border-radius: 0; padding: 2px 0; }
+.balances { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bal { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 2px; border-top: 4px solid var(--c); }
+.bal.cash { --c: var(--cash); } .bal.online { --c: var(--online); }
+.bal .tag { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c); font-weight: 600; }
+.bal .big { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; overflow-wrap: anywhere; }
+.bal .big.neg { color: var(--bad); }
+.bal .sub { font-size: 0.8rem; color: var(--muted); }
+.summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 0.9rem; }
+.summary b { font-family: var(--font-display); font-size: 1.1rem; }
+.seg { display: flex; gap: 8px; flex: 1 1 140px; }
+.seg label { flex: 1; flex-direction: row; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px; color: var(--fg); cursor: pointer; font-size: 0.95rem; gap: 6px; }
+.seg input { width: auto; margin: 0; }
+.seg label:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar-top { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; }
+.track { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.fill { height: 100%; background: var(--accent); border-radius: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 0.85rem; }
+.chip button { border: 0; background: none; padding: 0 6px; color: var(--muted); font-size: 1rem; line-height: 1; }
+.filters { display: flex; gap: 6px; }
+.filters button { padding: 6px 12px; font-size: 0.85rem; }
+.filters button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.list li { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.list li:first-child { border-top: 0; }
+.list .what { min-width: 0; overflow-wrap: anywhere; }
+.list .meta { font-size: 0.8rem; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pill { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.pill.cash { --c: var(--cash); } .pill.online { --c: var(--online); }
+.amt { font-weight: 600; text-align: right; }
+.amt.in { color: var(--accent); }
+.x { border: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 1.1rem; }
+.msg { font-size: 0.85rem; color: var(--bad); min-height: 1.2em; }
+.empty { color: var(--muted); font-size: 0.9rem; padding: 6px 0; }
+details summary { cursor: pointer; font-weight: 500; color: var(--accent); }
+details[open] summary { margin-bottom: 10px; }
+</style>
+
+<main>
+  <header class="row between">
+    <input id="tripName" class="trip-name" aria-label="Trip name" maxlength="40" style="flex:1 1 200px">
+    <button id="editStart" class="link" type="button">Edit starting balance</button>
+  </header>
+
+  <!-- First run / edit starting balance -->
+  <section id="setup" class="card" hidden>
+    <h2>Starting balance</h2>
+    <p class="muted" style="margin:0">Enter the money you begin the trip with. Example values are filled in; change them.</p>
+    <form id="setupForm" class="row">
+      <label for="cash0">Cash in hand (₹)<input id="cash0" type="number" inputmode="decimal" min="0" step="any" value="5000" required></label>
+      <label for="online0">Online / bank (₹)<input id="online0" type="number" inputmode="decimal" min="0" step="any" value="15000" required></label>
+      <button class="primary" type="submit" style="flex:1 1 100%">Start tracking</button>
+    </form>
+  </section>
+
+  <div id="app" hidden style="display:flex;flex-direction:column;gap:16px">
+    <section class="balances" aria-label="Balances left">
+      <div class="bal cash"><span class="tag">Cash left</span><span id="cashLeft" class="big num"></span><span id="cashSub" class="sub num"></span></div>
+      <div class="bal online"><span class="tag">Online left</span><span id="onlineLeft" class="big num"></span><span id="onlineSub" class="sub num"></span></div>
+    </section>
+    <div class="summary card" style="flex-direction:row">
+      <span>Total spent <b id="totalSpent" class="num"></b></span>
+      <span>Total left <b id="totalLeft" class="num"></b></span>
+    </div>
+
+    <section class="card">
+      <h2>Add expense</h2>
+      <form id="expForm" class="row">
+        <label for="amount">Amount (₹)<input id="amount" type="number" inputmode="decimal" min="0.01" step="any" required placeholder="e.g. 450"></label>
+        <label for="head">Expense head<select id="head" required></select></label>
+        <div class="seg" role="radiogroup" aria-label="Paid by">
+          <label><input type="radio" name="mode" value="cash" checked> Cash</label>
+          <label><input type="radio" name="mode" value="online"> Online</label>
+        </div>
+        <label for="date">Date<input id="date" type="date" required></label>
+        <label for="note" style="flex-basis:100%">Note (optional)<input id="note" maxlength="60" placeholder="e.g. Lunch at dhaba"></label>
+        <button class="primary" type="submit" style="flex:1 1 100%">Add expense</button>
+      </form>
+      <div id="expMsg" class="msg" role="status"></div>
+      <details>
+        <summary>Add money (top-up or ATM withdrawal)</summary>
+        <form id="topForm" class="row">
+          <div class="seg" role="radiogroup" aria-label="Add to">
+            <label><input type="radio" name="tmode" value="cash" checked> Cash</label>
+            <label><input type="radio" name="tmode" value="online"> Online</label>
+          </div>
+          <label for="tamt">Amount (₹)<input id="tamt" type="number" inputmode="decimal" min="0.01" step="any" required></label>
+          <button type="submit" style="flex:1 1 100%">Add money</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Spending by head</h2>
+      <div id="bars" class="bars"></div>
+    </section>
+
+    <section class="card">
+      <h2>Expense heads</h2>
+      <div id="chips" class="chips"></div>
+      <form id="headForm" class="row">
+        <label for="newHead" style="flex:1 1 160px">New head<input id="newHead" maxlength="24" placeholder="e.g. Gifts"></label>
+        <button type="submit" style="align-self:flex-end">Add head</button>
+      </form>
+      <div id="headMsg" class="msg" role="status"></div>
+    </section>
+
+    <section class="card">
+      <div class="row between"><h2>History</h2>
+        <div class="filters" id="filters">
+          <button type="button" data-f="all" aria-pressed="true">All</button>
+          <button type="button" data-f="cash" aria-pressed="false">Cash</button>
+          <button type="button" data-f="online" aria-pressed="false">Online</button>
+        </div>
+      </div>
+      <ul id="list" class="list"></ul>
+    </section>
+
+    <div class="row between">
+      <span class="muted" style="font-size:0.8rem">Saved on this device and browser only.</span>
+      <button id="reset" class="link danger" type="button">Reset trip</button>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var KEY = "tripExpenseTracker.v1";
+  var DEFAULT_HEADS = ["Food", "Travel", "Stay", "Fuel", "Tickets", "Shopping", "Other"];
+  var state = load() || { trip: "My trip", started: false, cash0: 0, online0: 0, heads: DEFAULT_HEADS.slice(), topups: [], expenses: [] };
+  var filter = "all", resetArmed = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function load() { try { var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function money(n) { return "₹" + (Math.round(n * 100) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 }); }
+  function today() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+  function fmtDate(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("en-IN", { day: "numeric", month: "short" }); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function sum(arr, mode) { return arr.reduce(function (t, x) { return t + (!mode || x.mode === mode ? x.amount : 0); }, 0); }
+  function left(mode) { return (mode === "cash" ? state.cash0 : state.online0) + sum(state.topups, mode) - sum(state.expenses, mode); }
+
+  function render() {
+    $("tripName").value = state.trip;
+    $("setup").hidden = state.started;
+    $("app").hidden = !state.started;
+    if (!state.started) return;
+
+    ["cash", "online"].forEach(function (m) {
+      var l = left(m), el = $(m + "Left");
+      el.textContent = money(l);
+      el.classList.toggle("neg", l < 0);
+      var start = m === "cash" ? state.cash0 : state.online0;
+      $(m + "Sub").textContent = "Start " + money(start) + " · Spent " + money(sum(state.expenses, m));
+    });
+    var spent = sum(state.expenses);
+    $("totalSpent").textContent = money(spent);
+    $("totalLeft").textContent = money(left("cash") + left("online"));
+
+    var sel = $("head"), cur = sel.value;
+    sel.innerHTML = state.heads.map(function (h) { return "<option>" + esc(h) + "</option>"; }).join("");
+    if (state.heads.indexOf(cur) > -1) sel.value = cur;
+
+    var totals = state.heads.map(function (h) {
+      return { h: h, t: state.expenses.filter(function (e) { return e.head === h; }).reduce(function (a, e) { return a + e.amount; }, 0) };
+    }).sort(function (a, b) { return b.t - a.t; });
+    $("bars").innerHTML = spent === 0 ? '<div class="empty">No expenses yet. Add the first one above.</div>' :
+      totals.filter(function (x) { return x.t > 0; }).map(function (x) {
+        var pct = Math.round(x.t / spent * 100);
+        return '<div><div class="bar-top"><span>' + esc(x.h) + '</span><span class="num">' + money(x.t) + ' · ' + pct + '%</span></div><div class="track"><div class="fill" style="width:' + pct + '%"></div></div></div>';
+      }).join("");
+
+    $("chips").innerHTML = state.heads.map(function (h, i) {
+      return '<span class="chip">' + esc(h) + '<button type="button" data-rm="' + i + '" aria-label="Remove ' + esc(h) + '">×</button></span>';
+    }).join("");
+
+    var items = state.expenses.map(function (e) { return { k: "e", e: e }; })
+      .concat(state.topups.map(function (t) { return { k: "t", e: t }; }))
+      .filter(function (x) { return filter === "all" || x.e.mode === filter; })
+      .sort(function (a, b) { return b.e.date === a.e.date ? b.e.id.localeCompare(a.e.id) : b.e.date.localeCompare(a.e.date); });
+    $("list").innerHTML = items.length === 0 ? '<li class="empty" style="display:block">Nothing here yet.</li>' : items.map(function (x) {
+      var e = x.e, isE = x.k === "e";
+      return '<li><div class="what"><div>' + (isE ? esc(e.head) + (e.note ? ' <span class="muted">· ' + esc(e.note) + '</span>' : '') : 'Money added') + '</div>' +
+        '<div class="meta"><span class="pill ' + e.mode + '">' + e.mode + '</span><span>' + fmtDate(e.date) + '</span></div></div>' +
+        '<span class="amt num ' + (isE ? '' : 'in') + '">' + (isE ? '−' : '+') + money(e.amount) + '</span>' +
+        '<button class="x" type="button" data-del="' + x.k + ':' + e.id + '" aria-label="Delete entry">×</button></li>';
+    }).join("");
+    Array.prototype.forEach.call($("filters").children, function (b) { b.setAttribute("aria-pressed", b.dataset.f === filter); });
+  }
+
+  $("tripName").addEventListener("input", function (e) { state.trip = e.target.value; save(); });
+  $("editStart").addEventListener("click", function () {
+    $("cash0").value = state.cash0 || 5000; $("online0").value = state.online0 || 15000;
+    state.started = false; render();
+  });
+  $("setupForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    state.cash0 = Math.max(0, parseFloat($("cash0").value) || 0);
+    state.online0 = Math.max(0, parseFloat($("online0").value) || 0);
+    state.started = true; save(); render();
+  });
+  $("expForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var amount = parseFloat($("amount").value);
+    if (!(amount > 0)) { $("expMsg").textContent = "Enter an amount above zero."; return; }
+    if (!$("head").value) { $("expMsg").textContent = "Choose an expense head."; return; }
+    var mode = document.querySelector('input[name="mode"]:checked').value;
+    var before = left(mode);
+    state.expenses.push({ id: uid(), amount: amount, head: $("head").value, mode: mode, date: $("date").value || today(), note: $("note").value.trim() });
+    $("amount").value = ""; $("note").value = "";
+    $("expMsg").textContent = amount > before ? "Saved. Your " + mode + " balance is now below zero." : "";
+    save(); render(); $("amount").focus();
+  });
+  $("topForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var a = parseFloat($("tamt").value);
+    if (!(a > 0)) return;
+    state.topups.push({ id: uid(), amount: a, mode: document.querySelector('input[name="tmode"]:checked').value, date: today() });
+    $("tamt").value = ""; save(); render();
+  });
+  $("headForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var h = $("newHead").value.trim();
+    if (!h) return;
+    if (state.heads.some(function (x) { return x.toLowerCase() === h.toLowerCase(); })) { $("headMsg").textContent = "That head already exists."; return; }
+    state.heads.push(h); $("newHead").value = ""; $("headMsg").textContent = ""; save(); render();
+  });
+  $("chips").addEventListener("click", function (e) {
+    var i = e.target.dataset && e.target.dataset.rm;
+    if (i === undefined) return;
+    var h = state.heads[+i];
+    if (state.heads.length <= 1) { $("headMsg").textContent = "Keep at least one head."; return; }
+    if (state.expenses.some(function (x) { return x.head === h; })) { $("headMsg").textContent = "'" + h + "' has expenses. Delete those first to remove it."; return; }
+    state.heads.splice(+i, 1); $("headMsg").textContent = ""; save(); render();
+  });
+  $("list").addEventListener("click", function (e) {
+    var d = e.target.dataset && e.target.dataset.del;
+    if (!d) return;
+    var p = d.split(":"), arr = p[0] === "e" ? state.expenses : state.topups;
+    var idx = arr.findIndex(function (x) { return x.id === p[1]; });
+    if (idx > -1) arr.splice(idx, 1);
+    save(); render();
+  });
+  $("filters").addEventListener("click", function (e) { if (e.target.dataset.f) { filter = e.target.dataset.f; render(); } });
+  $("reset").addEventListener("click", function (e) {
+    if (!resetArmed) { resetArmed = true; e.target.textContent = "Tap again to erase everything"; setTimeout(function () { resetArmed = false; e.target.textContent = "Reset trip"; }, 4000); return; }
+    state = { trip: "My trip", started: false, cash0: 0, online0: 0, heads: DEFAULT_HEADS.slice(), topups: [], expenses: [] };
+    resetArmed = false; e.target.textContent = "Reset trip"; save(); render();
+  });
+
+  $("date").value = today();
+  render();
+})();
+                     </script>
+                     
